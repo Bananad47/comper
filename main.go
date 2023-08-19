@@ -20,9 +20,18 @@ type Config struct {
 	LastMessage uint32 `env:"LASTMESSAGE"`
 }
 
+type MessageInfo struct {
+	Body       string
+	SenderMail string
+	SenderName string
+	Date       string
+	Subject    string
+}
+
 var cfg Config
 var lastMessage uint32
 
+// считываем конфиг из .env перед запуском
 func init() {
 	err := cleanenv.ReadConfig(".env", &cfg)
 	if err != nil {
@@ -74,11 +83,15 @@ func main() {
 		}()
 		for msg := range messages {
 			log.Println("New message", msg.Envelope.Subject)
-			body, err := GetMessageBody(msg)
-			if err != nil {
-				log.Fatal(err)
+
+			for _, addr := range msg.Envelope.From {
+				log.Println(*addr)
 			}
-			log.Println(body)
+//			body, err := GetMessageBody(msg)
+//			if err != nil {
+//				log.Fatal(err)
+//			}
+//			log.Println(body)
 		}
 		if err := <-done; err != nil {
 			log.Fatal(err)
