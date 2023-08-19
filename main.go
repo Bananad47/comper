@@ -1,8 +1,11 @@
 package main
 
 import (
+	"io"
 	"log"
 	"time"
+
+	"github.com/emersion/go-message/mail"
 
 	"github.com/emersion/go-imap"
 
@@ -67,14 +70,40 @@ func main() {
 		messages := make(chan *imap.Message, 10)
 		done := make(chan error, 1)
 		go func() {
-			done <- c.Fetch(seqset, []imap.FetchItem{imap.FetchBody, imap.FetchEnvelope}, messages)
+			done <- c.Fetch(seqset, []imap.FetchItem{imap.FetchBody, imap.FetchEnvelope, imap.FetchItem("BODY.PEEK[]")}, messages)
 		}()
 		for msg := range messages {
-			log.Println("NEWMSG", msg.Envelope.Subject)
-			log.Println(msg.Body, msg.BodyStructure)
+			log.Println("New message", msg.Envelope.Subject)
+			body, err := GetMessageBody(msg)
+			if err != nil {
+				log.Fatal(err)
+			}
+			log.Println(body)
 		}
 		if err := <-done; err != nil {
 			log.Fatal(err)
 		}
 	}
+}
+
+func GetMessageBody(msg *imap.Message) (string, error) {
+	var res string
+	//считывае тело сообщения
+	for _, literal := range msg.Body {
+		mailreader, err := mail.CreateReader(literal)
+		if err != nil {
+			return "", err
+		}
+		//получаем часть письма, которая содержит тело
+		p, err := mailreader.NextPart()
+		if err != nil {
+			return "", err
+		}
+		temp, err := io.ReadAll(p.Body)
+		if err != nil {
+			return "", err
+		}
+		res = string(temp)
+	}
+	return res, nil
 }
